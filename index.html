@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>リアルタイム同時通訳字幕アプリ (イエロー字幕版)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #0b0f19;
+            color: #f8fafc;
+        }
+
+        /* Yellow Glowing Subtitle Text Effect */
+        .text-glow-yellow {
+            color: #fef08a; /* Yellow-200 */
+            text-shadow: 
+                0 0 12px rgba(250, 204, 21, 0.9),
+                0 0 25px rgba(245, 158, 11, 0.6),
+                0 0 45px rgba(217, 119, 6, 0.3);
+        }
+
+        .text-outline-dark {
+            text-shadow: 
+                -2px -2px 0 #000, 
+                 2px -2px 0 #000, 
+                -2px  2px 0 #000, 
+                 2px  2px 0 #000, 
+                 0 4px 16px rgba(0, 0, 0, 0.95),
+                 0 0 20px rgba(250, 204, 21, 0.7);
+        }
+
+        /* Glassmorphism Card Container */
+        .glass-box {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(250, 204, 21, 0.15);
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(11, 15, 25, 0.8);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(245, 158, 11, 0.4);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(245, 158, 11, 0.8);
+        }
+
+        /* Fullscreen Subtitle Mode Overlay */
+        body.fullscreen-mode #app-header,
+        body.fullscreen-mode #history-section,
+        body.fullscreen-mode #controls-bar {
+            display: none !important;
+        }
+
+        body.fullscreen-mode #main-subtitle-card {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            border-radius: 0;
+            border: none;
+            background: rgba(5, 8, 15, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-black">
+
+    <header id="app-header" class="border-b border-amber-500/10 bg-slate-900/90 sticky top-0 z-40 backdrop-blur-md px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- App Logo & Title -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-orange-500 flex items-center justify-center text-slate-950 shadow-lg shadow-amber-500/20 font-black">
+                    <i class="fa-solid fa-language text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-white flex items-center gap-2">
+                        リアルタイム同時通訳字幕
+                        <span class="px-2 py-0.5 text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full font-normal">Natural TTS</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-400">イエロー発光字幕 & 高音質ナチュラル音声合成</p>
+                </div>
+            </div>
+
+            <!-- Language and Natural Voice Selectors -->
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+                <!-- Source Speech Lang -->
+                <select id="source-lang" class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-500">
+                    <option value="ja-JP" selected>日本語 (Japanese)</option>
+                    <option value="en-US">英語 (English)</option>
+                    <option value="zh-CN">中国語 (Chinese)</option>
+                    <option value="ko-KR">韓国語 (Korean)</option>
+                    <option value="es-ES">スペイン語 (Spanish)</option>
+                    <option value="fr-FR">フランス語 (French)</option>
+                </select>
+
+                <i class="fa-solid fa-arrow-right text-slate-500 text-xs"></i>
+
+                <!-- Target Translation Lang -->
+                <select id="target-lang" class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-500">
+                    <option value="en" selected>英語 (English)</option>
+                    <option value="ja">日本語 (Japanese)</option>
+                    <option value="zh">中国語 (Chinese)</option>
+                    <option value="ko">韓国語 (Korean)</option>
+                    <option value="es">スペイン語 (Spanish)</option>
+                    <option value="fr">フランス語 (French)</option>
+                </select>
+
+                <!-- Natural Voice Selection Dropdown -->
+                <select id="voice-select" class="bg-slate-800 text-amber-300 border border-amber-500/30 rounded-lg px-2.5 py-1.5 focus:outline-none max-w-[160px] truncate" title="読み上げモデル">
+                    <option value="">音声: 高音質自動</option>
+                </select>
+
+                <!-- Auto Read Speech Toggle -->
+                <button id="btn-toggle-tts" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center gap-1.5 transition-colors" title="自動読み上げオン/オフ">
+                    <i id="tts-icon" class="fa-solid fa-volume-xmark text-slate-400"></i>
+                    <span id="tts-label">自動読み上げ OFF</span>
+                </button>
+            </div>
+
+            <!-- Utilities -->
+            <div class="flex items-center gap-2">
+                <button id="btn-embed-code" title="iframe埋め込みコードを取得" class="p-2 text-slate-400 hover:text-amber-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-all">
+                    <i class="fa-solid fa-code"></i>
+                </button>
+                <button id="btn-fullscreen" title="全画面表示 (Escで解除)" class="p-2 text-slate-400 hover:text-amber-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-all">
+                    <i class="fa-solid fa-expand"></i>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
+
+        <!-- Main Live Subtitle Card (Yellow Theme) -->
+        <div id="main-subtitle-card" class="glass-box rounded-3xl p-6 md:p-10 shadow-2xl relative min-h-[300px] flex flex-col justify-between transition-all duration-300">
+            
+            <!-- Card Top Header -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span id="live-indicator" class="w-3 h-3 rounded-full bg-slate-500"></span>
+                    <span id="live-status-text" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">マイク待機中</span>
+                </div>
+
+                <!-- Font Size & Manual Play Controls -->
+                <div class="flex items-center gap-3">
+                    <button id="btn-font-smaller" title="文字を小さく" class="p-1.5 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg text-xs border border-slate-700">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <span id="font-size-label" class="text-xs text-amber-400 font-mono">36px</span>
+                    <button id="btn-font-larger" title="文字を大きく" class="p-1.5 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg text-xs border border-slate-700">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button id="btn-speak-current" title="現在の字幕を再生" class="p-1.5 text-amber-300 hover:text-amber-200 bg-amber-950/60 hover:bg-amber-900/80 rounded-lg text-xs border border-amber-600/40">
+                        <i class="fa-solid fa-volume-high"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Subtitle Big Display Section (Yellow Glowing Text) -->
+            <div class="my-6 space-y-4">
+                <!-- Translated Subtitle Text (Yellow Glowing Style) -->
+                <p id="target-subtitle-text" class="text-glow-yellow text-outline-dark font-black tracking-wide leading-tight transition-all duration-150" style="font-size: 36px;">
+                    音声入力を待機中...
+                </p>
+
+                <!-- Source Speech Recognized Text -->
+                <p id="source-subtitle-text" class="text-base md:text-lg font-medium text-slate-300/80 border-t border-slate-800/80 pt-3">
+                    「通訳を開始する」を押すと、リアルタイム音声認識とイエロー発光字幕が始まります。
+                </p>
+            </div>
+
+            <!-- Card Bottom Bar -->
+            <div class="flex items-center justify-between text-xs text-slate-400">
+                <span id="speech-interim-tag" class="opacity-0 transition-opacity duration-200 text-amber-400 font-medium flex items-center gap-1.5">
+                    <i class="fa-solid fa-spinner animate-spin text-[10px]"></i> 聞き取り中...
+                </span>
+                <span id="last-updated-time" class="font-mono text-slate-500">--:--:--</span>
+            </div>
+
+            <!-- Floating Exit Fullscreen Button -->
+            <button id="btn-exit-fullscreen" class="hidden absolute top-4 right-4 z-50 bg-slate-900/90 text-white p-3 rounded-full border border-slate-700 shadow-xl hover:bg-red-600 transition-all">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Controls Bar -->
+        <div id="controls-bar" class="flex flex-wrap items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-4 rounded-2xl">
+            <!-- Mic Start/Stop Button -->
+            <button id="btn-toggle-mic" class="px-6 py-3 bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 rounded-xl font-extrabold text-sm shadow-lg shadow-amber-500/20 flex items-center gap-2.5 transition-all active:scale-95">
+                <i id="mic-btn-icon" class="fa-solid fa-microphone text-base"></i>
+                <span id="mic-btn-text">通訳を開始する</span>
+            </button>
+
+            <!-- File Exporters -->
+            <div class="flex items-center gap-2">
+                <button id="btn-clear-all" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 text-xs font-medium transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can text-slate-400"></i> クリア
+                </button>
+                <button id="btn-export-csv" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 text-xs font-medium transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-csv text-emerald-400"></i> CSV保存
+                </button>
+                <button id="btn-export-txt" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 text-xs font-medium transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-lines text-amber-400"></i> テキスト保存
+                </button>
+            </div>
+        </div>
+
+        <!-- Translation History Section -->
+        <section id="history-section" class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 flex flex-col gap-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-amber-400"></i> 通訳履歴ログ
+                </h2>
+                <span id="history-count" class="px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 text-xs font-mono">0 件</span>
+            </div>
+
+            <!-- History List Items -->
+            <div id="history-container" class="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                <p id="history-placeholder" class="text-center text-slate-500 py-8 text-xs">
+                    会話が認識されるとここに字幕履歴が追加されます。
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Embed Code Modal -->
+    <div id="embed-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-code text-amber-400"></i> iframe 埋め込みコード
+                </h3>
+                <button id="btn-close-modal" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Google Apps Scriptや外部サイト等に組み込む際は、マイク使用を許可する <code class="text-amber-300 font-mono bg-slate-800 px-1 py-0.5 rounded">allow="microphone"</code> 属性を追加してください。
+            </p>
+            <textarea id="embed-code-area" readonly class="w-full h-24 bg-slate-950 border border-slate-800 text-slate-300 text-xs font-mono p-3 rounded-xl focus:outline-none select-all"></textarea>
+            <div class="flex justify-end gap-2">
+                <button id="btn-copy-embed" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition-all">
+                    コードをコピー
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <script>
+        'use strict';
+
+        // State Management
+        const appState = {
+            isListening: false,
+            autoTTS: false,
+            currentFontSize: 36,
+            sourceLang: 'ja-JP',
+            targetLang: 'en',
+            voices: [],
+            history: [],
+            recognition: null
+        };
+
+        // DOM Element Registry
+        const el = {
+            header: document.getElementById('app-header'),
+            sourceLang: document.getElementById('source-lang'),
+            targetLang: document.getElementById('target-lang'),
+            voiceSelect: document.getElementById('voice-select'),
+            btnToggleTts: document.getElementById('btn-toggle-tts'),
+            ttsIcon: document.getElementById('tts-icon'),
+            ttsLabel: document.getElementById('tts-label'),
+            btnEmbedCode: document.getElementById('btn-embed-code'),
+            btnFullscreen: document.getElementById('btn-fullscreen'),
+            
+            mainSubtitleCard: document.getElementById('main-subtitle-card'),
+            liveIndicator: document.getElementById('live-indicator'),
+            liveStatusText: document.getElementById('live-status-text'),
+            targetSubtitleText: document.getElementById('target-subtitle-text'),
+            sourceSubtitleText: document.getElementById('source-subtitle-text'),
+            speechInterimTag: document.getElementById('speech-interim-tag'),
+            lastUpdatedTime: document.getElementById('last-updated-time'),
+            fontSizeLabel: document.getElementById('font-size-label'),
+            btnFontSmaller: document.getElementById('btn-font-smaller'),
+            btnFontLarger: document.getElementById('btn-font-larger'),
+            btnSpeakCurrent: document.getElementById('btn-speak-current'),
+            btnExitFullscreen: document.getElementById('btn-exit-fullscreen'),
+
+            btnToggleMic: document.getElementById('btn-toggle-mic'),
+            micBtnIcon: document.getElementById('mic-btn-icon'),
+            micBtnText: document.getElementById('mic-btn-text'),
+            btnClearAll: document.getElementById('btn-clear-all'),
+            btnExportCsv: document.getElementById('btn-export-csv'),
+            btnExportTxt: document.getElementById('btn-export-txt'),
+
+            historyContainer: document.getElementById('history-container'),
+            historyPlaceholder: document.getElementById('history-placeholder'),
+            historyCount: document.getElementById('history-count'),
+
+            embedModal: document.getElementById('embed-modal'),
+            embedCodeArea: document.getElementById('embed-code-area'),
+            btnCloseModal: document.getElementById('btn-close-modal'),
+            btnCopyEmbed: document.getElementById('btn-copy-embed'),
+            toastContainer: document.getElementById('toast-container')
+        };
+
+        function initVoices() {
+            if (!('speechSynthesis' in window)) return;
+
+            const updateVoices = () => {
+                appState.voices = window.speechSynthesis.getVoices();
+                el.voiceSelect.innerHTML = '<option value="">音声: 高音質自動</option>';
+
+                appState.voices.forEach((voice, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    let displayName = `${voice.name} (${voice.lang})`;
+                    
+                    // Mark Natural / Premium Voices
+                    if (voice.name.includes('Natural') || voice.name.includes('Google') || voice.name.includes('Online') || voice.name.includes('Premium')) {
+                        displayName += ' ★高精度';
+                    }
+                    option.textContent = displayName;
+                    el.voiceSelect.appendChild(option);
+                });
+            };
+
+            updateVoices();
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = updateVoices;
+            }
+        }
+
+        // Play Natural TTS Speech Synthesis
+        function speakText(text, langCode) {
+            if (!text || !('speechSynthesis' in window)) return;
+
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langCode;
+            utterance.rate = 0.95; // Natural human-like speech tempo
+            utterance.pitch = 1.0;
+
+            // Use manually selected voice or search for the best Natural voice
+            if (el.voiceSelect.value !== '' && appState.voices[el.voiceSelect.value]) {
+                utterance.voice = appState.voices[el.voiceSelect.value];
+            } else {
+                const targetShort = langCode.split('-')[0];
+                const naturalVoice = appState.voices.find(v => 
+                    v.lang.startsWith(targetShort) && 
+                    (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Online') || v.name.includes('Premium'))
+                );
+                if (naturalVoice) utterance.voice = naturalVoice;
+            }
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function setupSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                showToast('お使いのブラウザは音声認識未対応です。Google ChromeかEdgeをお使いください。', 'error');
+                el.btnToggleMic.disabled = true;
+                el.btnToggleMic.classList.add('opacity-50', 'cursor-not-allowed');
+                return;
+            }
+
+            appState.recognition = new SpeechRecognition();
+            appState.recognition.continuous = true;
+            appState.recognition.interimResults = true;
+            appState.recognition.lang = appState.sourceLang;
+
+            appState.recognition.onstart = () => {
+                appState.isListening = true;
+                updateMicUI(true);
+            };
+
+            appState.recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (interimTranscript) {
+                    el.speechInterimTag.classList.remove('opacity-0');
+                    el.sourceSubtitleText.textContent = interimTranscript;
+                }
+
+                if (finalTranscript) {
+                    el.speechInterimTag.classList.add('opacity-0');
+                    el.sourceSubtitleText.textContent = finalTranscript;
+                    processTranslation(finalTranscript);
+                }
+            };
+
+            appState.recognition.onerror = (event) => {
+                console.warn('Speech error:', event.error);
+                if (event.error === 'not-allowed') {
+                    showToast('マイク許可が必要です。iframe埋め込み時は allow="microphone" 属性を確認してください。', 'error');
+                    stopMic();
+                }
+            };
+
+            appState.recognition.onend = () => {
+                if (appState.isListening) {
+                    try {
+                        appState.recognition.start();
+                    } catch (e) {
+                        console.warn('Auto restart:', e);
+                    }
+                } else {
+                    updateMicUI(false);
+                }
+            };
+        }
+
+        async function translateText(text, srcLang, tgtLang) {
+            if (!text || !text.trim()) return '';
+
+            const srcShort = srcLang.split('-')[0];
+            const tgtShort = tgtLang.split('-')[0];
+
+            if (srcShort === tgtShort) return text;
+
+            try {
+                const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${srcShort}|${tgtShort}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data && data.responseData && data.responseData.translatedText) {
+                    return data.responseData.translatedText;
+                }
+            } catch (err) {
+                console.error('Translation error:', err);
+            }
+            return `[通訳エラー] ${text}`;
+        }
+
+        async function processTranslation(originalText) {
+            const timestamp = new Date().toLocaleTimeString('ja-JP');
+            el.lastUpdatedTime.textContent = timestamp;
+
+            el.targetSubtitleText.textContent = '翻訳中...';
+
+            const translated = await translateText(originalText, appState.sourceLang, appState.targetLang);
+            el.targetSubtitleText.textContent = translated;
+
+            // Trigger Speech Synthesis if Enabled
+            if (appState.autoTTS && translated) {
+                speakText(translated, appState.targetLang);
+            }
+
+            // Log History
+            addHistoryRecord({
+                id: Date.now(),
+                timestamp: timestamp,
+                source: originalText,
+                target: translated
+            });
+        }
+
+        function startMic() {
+            if (!appState.recognition) setupSpeechRecognition();
+            if (appState.recognition && !appState.isListening) {
+                try {
+                    appState.recognition.lang = appState.sourceLang;
+                    appState.recognition.start();
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+        }
+
+        function stopMic() {
+            appState.isListening = false;
+            if (appState.recognition) {
+                appState.recognition.stop();
+            }
+            updateMicUI(false);
+        }
+
+        function updateMicUI(isListening) {
+            if (isListening) {
+                el.liveIndicator.className = 'w-3 h-3 rounded-full bg-red-500 animate-pulse';
+                el.liveStatusText.textContent = 'リアルタイム音声認識中';
+                el.liveStatusText.className = 'text-xs font-semibold text-red-400 uppercase tracking-wider';
+
+                el.btnToggleMic.className = 'px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-500/25 flex items-center gap-2.5 transition-all active:scale-95';
+                el.micBtnIcon.className = 'fa-solid fa-microphone-slash text-base';
+                el.micBtnText.textContent = '通訳を停止する';
+            } else {
+                el.liveIndicator.className = 'w-3 h-3 rounded-full bg-slate-500';
+                el.liveStatusText.textContent = 'マイク待機中';
+                el.liveStatusText.className = 'text-xs font-semibold text-slate-400 uppercase tracking-wider';
+
+                el.btnToggleMic.className = 'px-6 py-3 bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 rounded-xl font-extrabold text-sm shadow-lg shadow-amber-500/20 flex items-center gap-2.5 transition-all active:scale-95';
+                el.micBtnIcon.className = 'fa-solid fa-microphone text-base';
+                el.micBtnText.textContent = '通訳を開始する';
+            }
+        }
+
+        function addHistoryRecord(item) {
+            appState.history.unshift(item);
+            renderHistoryUI();
+        }
+
+        function renderHistoryUI() {
+            el.historyCount.textContent = `${appState.history.length} 件`;
+
+            if (appState.history.length === 0) {
+                el.historyContainer.innerHTML = '';
+                el.historyContainer.appendChild(el.historyPlaceholder);
+                return;
+            }
+
+            el.historyContainer.innerHTML = '';
+
+            appState.history.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'p-3.5 bg-slate-800/80 border border-slate-700/60 rounded-xl space-y-1 relative group hover:border-amber-500/50 transition-all';
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between text-[11px] text-slate-400">
+                        <span class="font-mono text-amber-400"><i class="fa-regular fa-clock mr-1"></i>${escapeHTML(item.timestamp)}</span>
+                        <button class="btn-play-history text-slate-400 hover:text-amber-300 p-1 rounded" title="再読み上げ">
+                            <i class="fa-solid fa-volume-high"></i>
+                        </button>
+                    </div>
+                    <p class="text-sm font-bold text-yellow-300 leading-relaxed">${escapeHTML(item.target)}</p>
+                    <p class="text-xs text-slate-400">${escapeHTML(item.source)}</p>
+                `;
+
+                card.querySelector('.btn-play-history').addEventListener('click', () => {
+                    speakText(item.target, appState.targetLang);
+                });
+
+                el.historyContainer.appendChild(card);
+            });
+        }
+
+        function escapeHTML(str) {
+            return (str || '').replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function showToast(msg, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 border transition-all transform translate-y-2 opacity-0 ${
+                type === 'error' ? 'bg-red-950/90 text-red-200 border-red-800' : 'bg-slate-900/90 text-amber-300 border-amber-500/40'
+            }`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info'}"></i> ${escapeHTML(msg)}`;
+            el.toastContainer.appendChild(toast);
+
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function attachEventListeners() {
+            // Mic Toggle Button
+            el.btnToggleMic.addEventListener('click', () => {
+                if (appState.isListening) {
+                    stopMic();
+                } else {
+                    startMic();
+                }
+            });
+
+            // Language Selects
+            el.sourceLang.addEventListener('change', (e) => {
+                appState.sourceLang = e.target.value;
+                if (appState.recognition) appState.recognition.lang = appState.sourceLang;
+            });
+            el.targetLang.addEventListener('change', (e) => {
+                appState.targetLang = e.target.value;
+            });
+
+            // TTS Toggle Button
+            el.btnToggleTts.addEventListener('click', () => {
+                appState.autoTTS = !appState.autoTTS;
+                if (appState.autoTTS) {
+                    el.btnToggleTts.className = 'px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center gap-1.5 transition-colors';
+                    el.ttsIcon.className = 'fa-solid fa-volume-high text-slate-950';
+                    el.ttsLabel.textContent = '自動読み上げ ON';
+                    showToast('高音質自動音声読み上げを有効化しました');
+                } else {
+                    el.btnToggleTts.className = 'px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center gap-1.5 transition-colors';
+                    el.ttsIcon.className = 'fa-solid fa-volume-xmark text-slate-400';
+                    el.ttsLabel.textContent = '自動読み上げ OFF';
+                }
+            });
+
+            // Play Subtitle Speech Manually
+            el.btnSpeakCurrent.addEventListener('click', () => {
+                speakText(el.targetSubtitleText.textContent, appState.targetLang);
+            });
+
+            // Font Resize Control
+            el.btnFontSmaller.addEventListener('click', () => {
+                if (appState.currentFontSize > 20) {
+                    appState.currentFontSize -= 4;
+                    el.targetSubtitleText.style.fontSize = `${appState.currentFontSize}px`;
+                    el.fontSizeLabel.textContent = `${appState.currentFontSize}px`;
+                }
+            });
+            el.btnFontLarger.addEventListener('click', () => {
+                if (appState.currentFontSize < 72) {
+                    appState.currentFontSize += 4;
+                    el.targetSubtitleText.style.fontSize = `${appState.currentFontSize}px`;
+                    el.fontSizeLabel.textContent = `${appState.currentFontSize}px`;
+                }
+            });
+
+            // Fullscreen Handlers
+            el.btnFullscreen.addEventListener('click', () => {
+                document.body.classList.add('fullscreen-mode');
+                el.btnExitFullscreen.classList.remove('hidden');
+            });
+            el.btnExitFullscreen.addEventListener('click', () => {
+                document.body.classList.remove('fullscreen-mode');
+                el.btnExitFullscreen.classList.add('hidden');
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && document.body.classList.contains('fullscreen-mode')) {
+                    document.body.classList.remove('fullscreen-mode');
+                    el.btnExitFullscreen.classList.add('hidden');
+                }
+            });
+
+            // Embed Code Modal Handlers
+            el.btnEmbedCode.addEventListener('click', () => {
+                const url = window.location.href;
+                el.embedCodeArea.value = `<iframe src="${url}" allow="microphone" style="width:100%; height:600px; border:none; border-radius:16px;"></iframe>`;
+                el.embedModal.classList.remove('hidden');
+            });
+            el.btnCloseModal.addEventListener('click', () => el.embedModal.classList.add('hidden'));
+            el.btnCopyEmbed.addEventListener('click', () => {
+                el.embedCodeArea.select();
+                document.execCommand('copy');
+                showToast('iframe埋め込みコードをコピーしました');
+                el.embedModal.classList.add('hidden');
+            });
+
+            // Clear Log
+            el.btnClearAll.addEventListener('click', () => {
+                appState.history = [];
+                renderHistoryUI();
+                showToast('字幕履歴をクリアしました');
+            });
+
+            // CSV Export
+            el.btnExportCsv.addEventListener('click', () => {
+                if (appState.history.length === 0) return showToast('出力する履歴がありません');
+                let csvContent = "\uFEFF時刻,原文,通訳文\n";
+                appState.history.forEach(item => {
+                    csvContent += `"${item.timestamp}","${item.source.replace(/"/g, '""')}","${item.target.replace(/"/g, '""')}"\n`;
+                });
+                downloadBlob(csvContent, `subtitles_${Date.now()}.csv`, 'text/csv;charset=utf-8;');
+            });
+
+            // TXT Export
+            el.btnExportTxt.addEventListener('click', () => {
+                if (appState.history.length === 0) return showToast('出力する履歴がありません');
+                let txtContent = appState.history.map(item => `[${item.timestamp}]\n原文: ${item.source}\n通訳: ${item.target}\n`).join('\n---\n\n');
+                downloadBlob(txtContent, `subtitles_${Date.now()}.txt`, 'text/plain;charset=utf-8;');
+            });
+        }
+
+        function downloadBlob(content, filename, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize App on DOM Loaded
+        window.addEventListener('DOMContentLoaded', () => {
+            initVoices();
+            setupSpeechRecognition();
+            attachEventListeners();
+        });
+    </script>
+</body>
+</html>
